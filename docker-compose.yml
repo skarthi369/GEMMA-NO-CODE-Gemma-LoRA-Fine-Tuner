@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  gemma-finetuner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gemma-finetuner
+    
+    # GPU support - requires nvidia-docker
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    
+    # Environment variables
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - GRADIO_PORT=7860
+    
+    # Ports
+    ports:
+      - "8000:8000"   # FastAPI backend
+      - "7860:7860"   # Gradio frontend
+    
+    # Volumes for persistent storage
+    volumes:
+      - ./datasets:/app/datasets
+      - ./models:/app/models
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+      - ./temp:/app/temp
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Optional: Add Redis for Celery (background task queue)
+# Uncomment if you want distributed task processing
+#  redis:
+#    image: redis:7-alpine
+#    container_name: gemma-finetuner-redis
+#    ports:
+#      - "6379:6379"
+#    volumes:
+#      - redis-data:/data
+#    restart: unless-stopped
+
+#volumes:
+#  redis-data:
